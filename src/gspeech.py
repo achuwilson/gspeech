@@ -20,10 +20,10 @@
 # 30-06-2012 , 3.00pm									#
 # achu@achuwilson.in									#
 #########################################################################################
-# import roslib; roslib.load_manifest('gspeech') 
-# import rospy
-# from std_msgs.msg import String
-# from std_msgs.msg import Int8
+import roslib; roslib.load_manifest('gspeech') 
+import rospy
+from std_msgs.msg import String
+from std_msgs.msg import Int8
 import shlex,subprocess,os,sys,json
 api_key = "" # PASTE HERE YOUR GOOGLE API KEY
 cmd1='sox -r 44100 -t alsa default recording.flac silence 1 0.1 1% 1 1.5 1%'
@@ -41,7 +41,7 @@ def speech():
 	output,error = subprocess.Popen(args2,stdout = subprocess.PIPE, stderr= subprocess.PIPE).communicate()
 		
 	if not error and len(output)>16:
-		print(output)
+		# print(output)
 		output = output.split('\n', 1)[1]
 		a = json.loads(output)['result'][0]
 		confidence= a['alternative'][0]['confidence']
