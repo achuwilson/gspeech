@@ -20,14 +20,14 @@
 # 30-06-2012 , 3.00pm									#
 # achu@achuwilson.in									#
 #########################################################################################
-import roslib; roslib.load_manifest('gspeech') 
-import rospy
-from std_msgs.msg import String
-from std_msgs.msg import Int8
-import shlex,subprocess,os
-cmd1='sox -r 16000 -t alsa default recording.flac silence 1 0.1 1% 1 1.5 1%'
-cmd2='wget -q -U "Mozilla/5.0" --post-file recording.flac --header="Content-Type: audio/x-flac; rate=16000" -O - "http://www.google.com/speech-api/v1/recognize?lang=en-us&client=chromium"'
-
+# import roslib; roslib.load_manifest('gspeech') 
+# import rospy
+# from std_msgs.msg import String
+# from std_msgs.msg import Int8
+import shlex,subprocess,os,sys,json
+api_key = "" # PASTE HERE YOUR GOOGLE API KEY
+cmd1='sox -r 44100 -t alsa default recording.flac silence 1 0.1 1% 1 1.5 1%'
+cmd2='wget -q -U "Mozilla/5.0" --post-file recording.flac --header="Content-Type: audio/x-flac; rate=44100" -O - "https://www.google.com/speech-api/v2/recognize?output=json&lang=en-us&key='+api_key+'"'
 
 def speech():
 	rospy.init_node('gspeech')
@@ -37,14 +37,16 @@ def speech():
 	
 	args2 = shlex.split(cmd2)
 	
-	os.system('sox -r 16000 -t alsa default recording.flac silence 1 0.1 1% 1 1.5 1%')	
+	os.system(cmd1)	
 	output,error = subprocess.Popen(args2,stdout = subprocess.PIPE, stderr= subprocess.PIPE).communicate()
 		
 	if not error and len(output)>16:
-		a = eval(output)
-		confidence= a['hypotheses'][0]['confidence']
+		print(output)
+		output = output.split('\n', 1)[1]
+		a = json.loads(output)['result'][0]
+		confidence= a['alternative'][0]['confidence']
 		confidence= confidence*100
-		data=a['hypotheses'][0]['utterance']
+		data=a['alternative'][0]['transcript']
 		pubs.publish(String(data))
 		pubc.publish(confidence)
 		print String(data), confidence
