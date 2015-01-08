@@ -44,12 +44,15 @@ def speech():
 		# print(output)
 		output = output.split('\n', 1)[1]
 		a = json.loads(output)['result'][0]
-		confidence= a['alternative'][0]['confidence']
-		confidence= confidence*100
-		data=a['alternative'][0]['transcript']
-		pubs.publish(String(data))
-		pubc.publish(confidence)
-		print String(data), confidence
+		if 'confidence' in a['alternative'][0]:
+			confidence= a['alternative'][0]['confidence']
+			confidence= confidence*100
+			pubc.publish(confidence)
+			print confidence
+		if 'transcript' in a['alternative'][0]:
+			data=a['alternative'][0]['transcript']
+			pubs.publish(String(data))
+			print String(data)
 	
 	speech()	
 	
