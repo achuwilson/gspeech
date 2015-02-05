@@ -21,7 +21,7 @@
 # achu@achuwilson.in									#
 #########################################################################################
 
-import shlex, subprocess, os, sys, json
+import shlex, subprocess, os, sys, socket, json
 import roslib; roslib.load_manifest('gspeech')
 import rospy
 from std_msgs.msg import String
@@ -33,6 +33,7 @@ class GSpeech(object):
     """Speech Recogniser using Google Speech API"""
 
     def __init__(self, _api_key):
+        """Constructor"""
         # configure system commands
         self.api_key = _api_key
         self.sox_cmd = "sox -r 44100 -t alsa default recording.flac silence 1 0.1 1% 1 1.5 1%"
@@ -52,7 +53,7 @@ class GSpeech(object):
         self.srv_stop = rospy.Service('~stop', Empty, self.stop)
         # run speech recognition
         self.started = True
-        self.do_gspeech()
+        self.do_recognition()
 
     def start(self):
         """Start speech recognition"""
@@ -67,11 +68,12 @@ class GSpeech(object):
         return EmptyResponse()
 
     def shutdown(self):
-        """Stop all system process and before killing node"""
+        """Stop all system process before killing node"""
         self.srv_start.shutdown()
         self.srv_stop.shutdown()
 
-    def do_gspeech(self):
+    def do_recognition(self):
+        """Do speech recognition"""
         args2 = shlex.split(self.wget_cmd)
         os.system(self.sox_cmd)
         output, error = subprocess.Popen(
@@ -90,11 +92,36 @@ class GSpeech(object):
                 self.pub_speech.publish(String(data))
                 rospy.loginfo(String(data))
         if self.started:
-            self.do_speech()
+            self.do_recognition()
+
+
+def is_connected():
+    """Check if connected to Internet"""
+    try:
+        # check if DNS can resolve hostname
+        remote_host = socket.gethostbyname("www.google.com")
+        # check if host is reachable
+        s = socket.create_connection(address=(remote_host, 80), timeout=5)
+        return True
+    except:
+        pass
+    return False
+
+
+def usage():
+    """Print Usage"""
+    print("Usage:")
+    print("rosrun gspeech gspeech.py <API_KEY>")
 
 
 def main():
-    api_key = ""
+    if len(sys.argv) != 2:
+        usage()
+        sys.exit("No API_KEY provided")
+    if not is_connected():
+        sys.exit("No Internet connection available")
+    api_key = str(sys.argv[1])
+    rospy.spin()
     speech = GSpeech(api_key)
 
 
