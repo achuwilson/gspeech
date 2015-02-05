@@ -55,13 +55,13 @@ class GSpeech(object):
         self.started = True
         self.do_recognition()
 
-    def start(self):
+    def start(self, req):
         """Start speech recognition"""
         self.started = True
         rospy.loginfo("gspeech recognizer started")
         return EmptyResponse()
 
-    def stop(self):
+    def stop(self, req):
         """Stop speech recognition"""
         self.started = False
         rospy.loginfo("gspeech recognizer stopped")
@@ -69,6 +69,7 @@ class GSpeech(object):
 
     def shutdown(self):
         """Stop all system process before killing node"""
+        self.started = False
         self.srv_start.shutdown()
         self.srv_stop.shutdown()
 
@@ -121,8 +122,8 @@ def main():
     if not is_connected():
         sys.exit("No Internet connection available")
     api_key = str(sys.argv[1])
-    rospy.spin()
     speech = GSpeech(api_key)
+    rospy.spin()
 
 
 if __name__ == '__main__':
