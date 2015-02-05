@@ -31,14 +31,14 @@ find_package(catkin REQUIRED COMPONENTS rospy)
 
 #uncomment if you have defined messages
 #add_message_files(
-  FILES
-  # TODO: List your msg files here
-)
+#  FILES
+#  # TODO: List your msg files here
+#)
 #uncomment if you have defined services
 #add_service_files(
-  FILES
-  # TODO: List your msg files here
-)
+#  FILES
+#  # TODO: List your msg files here
+#)
 
 #common commands for building c++ executables and libraries
 #add_library(${PROJECT_NAME} src/example.cpp)
@@ -52,9 +52,9 @@ find_package(catkin REQUIRED COMPONENTS rospy)
 #add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-    #TODO DEPENDENCIES geometry_msgs std_msgs
-)
+#generate_messages(
+#    #TODO DEPENDENCIES geometry_msgs std_msgs
+#)
 
 # catkin_package parameters: http://ros.org/doc/groovy/api/catkin/html/dev_guide/generated_cmake_api.html#catkin-package
 # TODO: fill in what other packages will need to use this package
