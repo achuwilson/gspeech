@@ -21,7 +21,7 @@
 # achu@achuwilson.in									#
 #########################################################################################
 
-import shlex, subprocess, os, sys, socket, json
+import json, shlex, socket, subprocess, sys, threading
 import roslib; roslib.load_manifest('gspeech')
 import rospy
 from std_msgs.msg import String
@@ -43,6 +43,8 @@ class GSpeech(object):
             ("\"https://www.google.com/speech-api/v2/recognize") + \
             ("?output=json&lang=en-us&key={api_key}\"")
         self.wget_cmd = self.wget_cmd.format(api_key=self.api_key)
+        self.sox_args = shlex.split(self.sox_cmd)
+        self.wget_args = shlex.split(self.wget_cmd)
         # start ROS node
         rospy.init_node('gspeech')
         # configure ROS settings
@@ -53,47 +55,61 @@ class GSpeech(object):
         self.srv_stop = rospy.Service('~stop', Empty, self.stop)
         # run speech recognition
         self.started = True
-        self.do_recognition()
+        self.recog_thread = threading.Thread(target=self.do_recognition, args=())
+        self.recog_thread.start()
 
     def start(self, req):
         """Start speech recognition"""
-        self.started = True
-        rospy.loginfo("gspeech recognizer started")
+        if not self.started:
+            self.started = True
+            if not self.recog_thread.is_alive():
+                self.recog_thread = threading.Thread(
+                    target=self.do_recognition, args=()
+                )
+                self.recog_thread.start()
+            rospy.loginfo("gspeech recognizer started")
+        else:
+            rospy.loginfo("gspeech is already running")
         return EmptyResponse()
 
     def stop(self, req):
         """Stop speech recognition"""
-        self.started = False
-        rospy.loginfo("gspeech recognizer stopped")
+        if self.started:
+            self.started = False
+            if self.recog_thread.is_alive():
+                self.recog_thread.join()
+            rospy.loginfo("gspeech recognizer stopped")
+        else:
+            rospy.loginfo("gspeech is already stopped")
         return EmptyResponse()
 
     def shutdown(self):
         """Stop all system process before killing node"""
         self.started = False
+        if self.recog_thread.is_alive():
+            self.recog_thread.join()
         self.srv_start.shutdown()
         self.srv_stop.shutdown()
 
     def do_recognition(self):
         """Do speech recognition"""
-        args2 = shlex.split(self.wget_cmd)
-        os.system(self.sox_cmd)
-        output, error = subprocess.Popen(
-            args2, stdout = subprocess.PIPE, stderr = subprocess.PIPE
-        ).communicate()
-        if not error and len(output) > 16:
-            output = output.split('\n', 1)[1]
-            a = json.loads(output)['result'][0]
-            if 'confidence' in a['alternative'][0]:
-                confidence = a['alternative'][0]['confidence']
-                confidence = confidence * 100
-                self.pub_confidence.publish(confidence)
-                rospy.loginfo("confidence: {}".format(confidence))
-            if 'transcript' in a['alternative'][0]:
-                data = a['alternative'][0]['transcript']
-                self.pub_speech.publish(String(data))
-                rospy.loginfo(String(data))
-        if self.started:
-            self.do_recognition()
+        while self.started:
+            sox_p = subprocess.call(self.sox_args)
+            wget_out, wget_err = subprocess.Popen(
+                self.wget_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            ).communicate()
+            if not wget_err and len(wget_out) > 16:
+                wget_out = wget_out.split('\n', 1)[1]
+                a = json.loads(wget_out)['result'][0]
+                if 'confidence' in a['alternative'][0]:
+                    confidence = a['alternative'][0]['confidence']
+                    confidence = confidence * 100
+                    self.pub_confidence.publish(confidence)
+                    rospy.loginfo("confidence: {}".format(confidence))
+                if 'transcript' in a['alternative'][0]:
+                    data = a['alternative'][0]['transcript']
+                    self.pub_speech.publish(String(data))
+                    rospy.loginfo(String(data))
 
 
 def is_connected():
