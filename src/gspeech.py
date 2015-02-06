@@ -132,7 +132,7 @@ def usage():
 
 
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         usage()
         sys.exit("No API_KEY provided")
     if not is_connected():
