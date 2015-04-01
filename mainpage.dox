@@ -5,7 +5,7 @@
 \b gspeech 
 
 <!-- 
-Provide an overview of your package.
+Node that allows you to use the google speech to text engine API for ROS
 -->
 
 -->
