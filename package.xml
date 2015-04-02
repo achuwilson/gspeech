@@ -1,0 +1,26 @@
+<package>
+  <name>gspeech</name>
+  <version>0.1.0</version>
+  <description>gspeech</description>
+  <maintainer email="example@example.com">achuwilsonGEC Sreekrishnapuram+91-9400418468</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">http://blog.achuwilson.in</url>
+  <!-- <url type="bugtracker"></url> -->
+
+  <author>achuwilsonGEC Sreekrishnapuram+91-9400418468</author>
+
+  <!-- Dependencies which this package needs to build itself. -->
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- Dependencies needed to compile this package. -->
+  <build_depend>rospy</build_depend>
+
+  <!-- Dependencies needed after this package is compiled. -->
+  <run_depend>rospy</run_depend>
+
+  <!-- Dependencies needed only for running tests. -->
+  <!-- <test_depend>rospy</test_depend> -->
+
+</package>
