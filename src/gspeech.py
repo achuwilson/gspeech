@@ -34,11 +34,9 @@ import roslib; roslib.load_manifest('gspeech')
 import rospy
 from std_msgs.msg import String
 from std_msgs.msg import Int8
-<<<<<<< HEAD
 import shlex,subprocess,os
 cmd1='sox -r 16000 -t alsa default recording.flac silence 1 0.1 1% 1 1.5 1%'
 cmd2='wget -q -U "Mozilla/5.0" --post-file recording.flac --header="Content-Type: audio/x-flac; rate=16000" -O - "https://www.google.com/speech-api/v2/recognize?output=json&lang=en-us&key=yourkey"'
-=======
 from std_srvs.srv import *
 
 
@@ -84,7 +82,6 @@ class GSpeech(object):
     else:
       rospy.loginfo("gspeech is already running")
     return EmptyResponse()
->>>>>>> e6a999073b0a13e9398bd0fd24228e559b1210e8
 
   def stop(self, req):
     """Stop speech recognition"""
@@ -97,7 +94,6 @@ class GSpeech(object):
         rospy.loginfo("gspeech is already stopped")
     return EmptyResponse()
 
-<<<<<<< HEAD
 def speech():
   rospy.init_node('gspeech')
   pubs = rospy.Publisher('speech', String)
@@ -125,7 +121,6 @@ if __name__ == '__main__':
   except KeyboardInterrupt:
     sys.exit(1)
    
-=======
   def shutdown(self):
     """Stop all system process before killing node"""
     self.started = False
@@ -192,6 +187,3 @@ if __name__ == '__main__':
     pass
   except KeyboardInterrupt:
     sys.exit(0)
-
-
->>>>>>> e6a999073b0a13e9398bd0fd24228e559b1210e8
