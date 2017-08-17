@@ -9,24 +9,25 @@
 #     |___/    |_|                                                                      #
 #                                                                                       #
 # ros package for speech recognition using Google Speech API                            #
-# run using 'rosrun gspeech gspeech.py'                                                 #
-# it creats and runs a node named gspeech                                               #
+# run using 'rosrun gspeech gspeech.py <your api key>'                                  #
+# it creates and runs a node named gspeech                                              #
 # the node gspeech publishes two topics- /speech and /confidence                        #
 # the topic /speech contains the reconized speech string                                #
 # the topic /confidence contains the confidence level in percentage of the recognization#
-#                                                                                       #
-#                                                                                       #
-# UPDATE: for key generation look http://www.chromium.org/developers/how-tos/api-keys   #
-#         at the revision date, each key allows your node to make up to 50 request      #
-#         change in the cmd2 at the end of the string "yourkey" for your key            #
+# the node gspeech registers services start and stop                                    #
+# For dependencies use: pip install --upgrade google-cloud; sudo apt-get install sox    #
+# For authentication do: export GOOGLE_APPLICATION_CREDENTIALS=<serviceaccount.json>    #
 #                                                                                       #
 # written by achuwilson                                                                 #
-# revision by pexison                                                                   #
+# revision by pexison,                                                                  #
+# revision by slesinger - removing redundant code, updating to latest Google API         #
 #                                                                                       #
 # 30-06-2012 , 3.00pm                                                                   #
 # achu@achuwilson.in                                                                    #
 # 01-04-2015 , 11:00am                                                                  #
 # pexison@gmail.com                                                                     #
+# 17-08-2017                                                                            #
+# slesinger@gmail.com                                                                   #
 #########################################################################################
 
 import json, shlex, socket, subprocess, sys, threading
@@ -34,34 +35,27 @@ import roslib; roslib.load_manifest('gspeech')
 import rospy
 from std_msgs.msg import String
 from std_msgs.msg import Int8
-import shlex,subprocess,os
-cmd1='sox -r 16000 -t alsa default recording.flac silence 1 0.1 1% 1 1.5 1%'
-cmd2='wget -q -U "Mozilla/5.0" --post-file recording.flac --header="Content-Type: audio/x-flac; rate=16000" -O - "https://www.google.com/speech-api/v2/recognize?output=json&lang=en-us&key=yourkey"'
+import shlex,subprocess,os,io
 from std_srvs.srv import *
-
+from google.cloud import speech
+from google.cloud.speech import enums
+from google.cloud.speech import types
 
 class GSpeech(object):
   """Speech Recogniser using Google Speech API"""
 
-  def __init__(self, _api_key):
+  def __init__(self):
     """Constructor"""
     # configure system commands
-    self.api_key = _api_key
-    self.sox_cmd = "sox -r 44100 -t alsa default recording.flac silence 1 0.1 1% 1 1.5 1%"
-    self.wget_cmd = ("wget -q -U \"Mozilla/5.0\" ") + \
-        ("--post-file recording.flac ") + \
-        ("--header=\"Content-Type: audio/x-flac; rate=44100\" -O - ") + \
-        ("\"https://www.google.com/speech-api/v2/recognize") + \
-        ("?output=json&lang=en-us&key={api_key}\"")
-    self.wget_cmd = self.wget_cmd.format(api_key=self.api_key)
+    self.sox_cmd = "sox -r 16000 -c 1 -t alsa default recording.flac silence 1 0.1 1% 1 1.5 1%"
     self.sox_args = shlex.split(self.sox_cmd)
-    self.wget_args = shlex.split(self.wget_cmd)
+    self.client = speech.SpeechClient()
     # start ROS node
     rospy.init_node('gspeech')
     # configure ROS settings
     rospy.on_shutdown(self.shutdown)
-    self.pub_speech = rospy.Publisher('~speech', String)
-    self.pub_confidence = rospy.Publisher('~confidence', Int8)
+    self.pub_speech = rospy.Publisher('~speech', String, queue_size=10)
+    self.pub_confidence = rospy.Publisher('~confidence', Int8, queue_size=10)
     self.srv_start = rospy.Service('~start', Empty, self.start)
     self.srv_stop = rospy.Service('~stop', Empty, self.stop)
     # run speech recognition
@@ -94,33 +88,6 @@ class GSpeech(object):
         rospy.loginfo("gspeech is already stopped")
     return EmptyResponse()
 
-def speech():
-  rospy.init_node('gspeech')
-  pubs = rospy.Publisher('speech', String)
-  pubc = rospy.Publisher('confidence', Int8)
-  args2 = shlex.split(cmd2)
-  os.system('sox -r 16000 -t alsa default recording.flac silence 1 0.1 1% 1 1.5 1%')    
-  output,error = subprocess.Popen(args2,stdout = subprocess.PIPE, stderr= subprocess.PIPE).communicate()
-      
-  if not error and len(output)>16:
-    a = eval(output)
-    confidence= a['hypotheses'][0]['confidence']
-    confidence= confidence*100
-    data=a['hypotheses'][0]['utterance']
-    pubs.publish(String(data))
-    pubc.publish(confidence)
-    print String(data), confidence
-  
-  speech()    
- 
-  
-if __name__ == '__main__':
-  try:
-    speech()
-  except rospy.ROSInterruptException: pass
-  except KeyboardInterrupt:
-    sys.exit(1)
-   
   def shutdown(self):
     """Stop all system process before killing node"""
     self.started = False
@@ -128,26 +95,34 @@ if __name__ == '__main__':
       self.recog_thread.join()
     self.srv_start.shutdown()
     self.srv_stop.shutdown()
+    os.remove("recording.flac")
 
   def do_recognition(self):
     """Do speech recognition"""
     while self.started:
       sox_p = subprocess.call(self.sox_args)
-      wget_out, wget_err = subprocess.Popen(
-        self.wget_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-      ).communicate()
-      if not wget_err and len(wget_out) > 16:
-        wget_out = wget_out.split('\n', 1)[1]
-        a = json.loads(wget_out)['result'][0]
-        if 'confidence' in a['alternative'][0]:
-          confidence = a['alternative'][0]['confidence']
-          confidence = confidence * 100
-          self.pub_confidence.publish(confidence)
-          rospy.loginfo("confidence: {}".format(confidence))
-        if 'transcript' in a['alternative'][0]:
-          data = a['alternative'][0]['transcript']
-          self.pub_speech.publish(String(data))
-          rospy.loginfo(String(data))
+      with io.open("recording.flac", 'rb') as audio_file:
+        content = audio_file.read()
+        audio = types.RecognitionAudio(content=content)
+
+      config = types.RecognitionConfig(
+        encoding=enums.RecognitionConfig.AudioEncoding.FLAC,
+        sample_rate_hertz=16000,
+        language_code='en-US')
+
+      response = self.client.recognize(config, audio)
+      print type(response)
+      alternatives = response.results[0].alternatives
+      for alt in alternatives:
+        confidence = alt.confidence * 100
+        self.pub_confidence.publish(confidence)
+        rospy.loginfo("confidence: {}".format(confidence))
+        self.pub_speech.publish(String(alt.transcript))
+        rospy.loginfo("transcript: {}".format(alt.transcript))
+
+# end of GSpeech class
+
+
 
 
 def is_connected():
@@ -170,13 +145,9 @@ def usage():
 
 
 def main():
-  if len(sys.argv) < 2:
-    usage()
-    sys.exit("No API_KEY provided")
   if not is_connected():
     sys.exit("No Internet connection available")
-  api_key = str(sys.argv[1])
-  speech = GSpeech(api_key)
+  speech = GSpeech()
   rospy.spin()
 
 
